@@ -190,7 +190,9 @@ class SpeedTest {
         const ogImage = document.querySelector('meta[property="og:image"]');
         const twitterImage = document.querySelector('meta[name="twitter:image"]');
         
-        const imageUrl = `/api/og?download=${this.downloadSpeed.toFixed(2)}&upload=${this.uploadSpeed.toFixed(2)}&ping=${this.ping.toFixed(0)}`;
+        // Use absolute URL for social media crawlers
+        const baseUrl = window.location.origin;
+        const imageUrl = `${baseUrl}/api/og?download=${this.downloadSpeed.toFixed(2)}&upload=${this.uploadSpeed.toFixed(2)}&ping=${this.ping.toFixed(0)}`;
         
         if (ogImage) {
             ogImage.setAttribute('content', imageUrl);
@@ -463,11 +465,9 @@ class SpeedTest {
     }
     
     async optimizedUploadTest() {
-        const results = [];
         const testDuration = 8000;
         const startTime = performance.now();
-        let totalBytes = 0;
-        const speedSamples = [];
+        const allSpeedSamples = [];
         
         // Use multiple concurrent uploads for better accuracy
         const uploadPromises = [];
@@ -477,12 +477,17 @@ class SpeedTest {
             uploadPromises.push(this.uploadThread(testDuration, startTime, i));
         }
         
-        await Promise.all(uploadPromises);
+        const results = await Promise.all(uploadPromises);
+        
+        // Combine all speed samples from all threads
+        results.forEach(threadSamples => {
+            allSpeedSamples.push(...threadSamples);
+        });
         
         // Calculate average speed from samples
-        if (speedSamples.length > 0) {
-            speedSamples.sort((a, b) => a - b);
-            const trimmed = this.trimArray(speedSamples, 0.2, 0.2);
+        if (allSpeedSamples.length > 0) {
+            allSpeedSamples.sort((a, b) => a - b);
+            const trimmed = this.trimArray(allSpeedSamples, 0.2, 0.2);
             const avgSpeed = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
             return Math.max(avgSpeed, 1);
         }
@@ -491,31 +496,73 @@ class SpeedTest {
     }
     
     async uploadThread(duration, globalStartTime, threadIndex) {
-        const chunkSize = 1024 * 1024; // 1MB chunks
+        const chunkSize = 512 * 1024; // 512KB chunks for better reliability
         const data = new Array(chunkSize).fill('x').join('');
         const blob = new Blob([data], { type: 'application/octet-stream' });
         const speedSamples = [];
+        let successCount = 0;
         
         while (performance.now() - globalStartTime < duration && this.isTesting) {
             const chunkStartTime = performance.now();
             
             try {
-                // Use a reliable endpoint for upload testing
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: blob,
-                    headers: { 'Content-Type': 'application/octet-stream' }
-                });
+                // Try multiple endpoints for better reliability
+                let response;
+                let success = false;
                 
-                const chunkEndTime = performance.now();
-                const chunkDuration = (chunkEndTime - chunkStartTime) / 1000;
+                // Try local API first
+                try {
+                    response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: blob,
+                        headers: { 'Content-Type': 'application/octet-stream' }
+                    });
+                    if (response.ok) success = true;
+                } catch (localError) {
+                    console.log('Local upload failed, trying fallback');
+                }
                 
-                if (chunkDuration > 0) {
-                    const speed = (chunkSize * 8) / (chunkDuration * 1024 * 1024);
-                    speedSamples.push(speed);
+                // If local fails, try httpbin
+                if (!success) {
+                    try {
+                        response = await fetch('https://httpbin.org/post', {
+                            method: 'POST',
+                            body: blob,
+                            headers: { 'Content-Type': 'application/octet-stream' }
+                        });
+                        if (response.ok) success = true;
+                    } catch (httpbinError) {
+                        console.log('Httpbin upload failed');
+                    }
+                }
+                
+                // If that fails, try a simple echo endpoint
+                if (!success) {
+                    try {
+                        response = await fetch('https://echo.zuplo.io', {
+                            method: 'POST',
+                            body: blob
+                        });
+                        if (response.ok) success = true;
+                    } catch (echoError) {
+                        console.log('Echo upload failed');
+                    }
+                }
+                
+                if (success) {
+                    successCount++;
+                    const chunkEndTime = performance.now();
+                    const chunkDuration = (chunkEndTime - chunkStartTime) / 1000;
                     
-                    this.currentSpeedEl.textContent = speed.toFixed(2);
-                    this.uploadSpeedEl.textContent = speed.toFixed(2);
+                    if (chunkDuration > 0 && chunkDuration < 10) {
+                        const speed = (chunkSize * 8) / (chunkDuration * 1024 * 1024);
+                        // Filter out unrealistic speeds
+                        if (speed > 0 && speed < 1000) {
+                            speedSamples.push(speed);
+                            this.currentSpeedEl.textContent = speed.toFixed(2);
+                            this.uploadSpeedEl.textContent = speed.toFixed(2);
+                        }
+                    }
                 }
                 
                 // Update progress
@@ -524,11 +571,13 @@ class SpeedTest {
                 this.updateProgress(Math.min(progress, 100));
                 
             } catch (error) {
-                // If upload fails, continue with next chunk
-                await this.delay(100);
+                console.log('Upload chunk error:', error);
             }
+            
+            await this.delay(50);
         }
         
+        console.log(`Thread ${threadIndex}: ${successCount} successful uploads, ${speedSamples.length} speed samples`);
         return speedSamples;
     }
     

@@ -5,7 +5,7 @@ export default function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -19,8 +19,7 @@ export default function handler(req, res) {
 
   const { download = '0', upload = '0', ping = '0' } = req.query;
 
-  const svg = `
-<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#0a0a0f;stop-opacity:1" />
