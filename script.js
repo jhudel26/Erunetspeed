@@ -17,20 +17,12 @@ class SpeedTest {
         // DOM Elements
         this.startTestBtn = document.getElementById('start-test');
         this.backToTestBtn = document.getElementById('back-to-test');
-        this.shareResultsBtn = document.getElementById('share-results');
-        this.closeShareModalBtn = document.getElementById('close-share-modal');
-        this.copyLinkBtn = document.getElementById('copy-link-btn');
-        this.shareTwitterBtn = document.getElementById('share-twitter');
-        this.shareFacebookBtn = document.getElementById('share-facebook');
-        this.shareWhatsappBtn = document.getElementById('share-whatsapp');
+        this.shareBtn = document.getElementById('share-results');
         
         this.resultsSection = document.getElementById('results-section');
         this.testControlSection = document.getElementById('test-control-section');
         this.testButtonContainer = document.getElementById('test-button-container');
         this.progressContainer = document.getElementById('progress-container');
-        this.shareModal = document.getElementById('share-modal');
-        this.shareLinkInput = document.getElementById('share-link-input');
-        this.shareSuccess = document.getElementById('share-success');
         
         // Metric elements
         this.downloadSpeedEl = document.getElementById('download-speed');
@@ -62,12 +54,7 @@ class SpeedTest {
         // Event listeners
         this.startTestBtn.addEventListener('click', () => this.startTest());
         this.backToTestBtn.addEventListener('click', () => this.showTestControl());
-        this.shareResultsBtn.addEventListener('click', () => this.openShareModal());
-        this.closeShareModalBtn.addEventListener('click', () => this.closeShareModal());
-        this.copyLinkBtn.addEventListener('click', () => this.copyShareLink());
-        this.shareTwitterBtn.addEventListener('click', () => this.shareOnTwitter());
-        this.shareFacebookBtn.addEventListener('click', () => this.shareOnFacebook());
-        this.shareWhatsappBtn.addEventListener('click', () => this.shareOnWhatsapp());
+        this.shareBtn.addEventListener('click', () => this.shareResult());
         this.cancelTestBtn.addEventListener('click', () => this.cancelTest());
         
         // Detect ISP info
@@ -146,64 +133,54 @@ class SpeedTest {
         });
     }
     
-    openShareModal() {
-        const shareUrl = this.generateShareUrl();
-        this.shareLinkInput.value = shareUrl;
-        this.shareModal.classList.remove('hidden');
-        this.shareSuccess.classList.add('hidden');
-    }
-    
-    closeShareModal() {
-        this.shareModal.classList.add('hidden');
-    }
-    
-    copyShareLink() {
-        const shareUrl = this.shareLinkInput.value;
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            this.shareSuccess.classList.remove('hidden');
-            setTimeout(() => {
-                this.shareSuccess.classList.add('hidden');
-            }, 2000);
-        }).catch(() => {
-            alert('Failed to copy link');
-        });
-    }
-    
-    shareOnTwitter() {
-        const text = `My Speed Test Results: Download: ${this.downloadSpeed.toFixed(2)} Mbps, Upload: ${this.uploadSpeed.toFixed(2)} Mbps, Ping: ${this.ping} ms`;
-        const url = this.generateShareUrl();
-        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-        window.open(twitterUrl, '_blank');
-    }
-    
-    shareOnFacebook() {
-        const url = this.generateShareUrl();
-        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-        window.open(facebookUrl, '_blank');
-    }
-    
-    shareOnWhatsapp() {
-        const text = `My Speed Test Results: Download: ${this.downloadSpeed.toFixed(2)} Mbps, Upload: ${this.uploadSpeed.toFixed(2)} Mbps, Ping: ${this.ping} ms`;
-        const url = this.generateShareUrl();
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
-        window.open(whatsappUrl, '_blank');
-    }
-    
-    generateShareUrl() {
-        const url = new URL(window.location.href);
-        url.searchParams.set('d', this.downloadSpeed.toFixed(2));
-        url.searchParams.set('u', this.uploadSpeed.toFixed(2));
-        url.searchParams.set('p', this.ping.toFixed(0));
-        url.searchParams.set('j', this.jitter.toFixed(0));
-        return url.toString();
-    }
-    
     cancelTest() {
         this.isTesting = false;
         this.cleanup();
         this.hideProgress();
         this.showTestControl();
         this.resetTestPhases();
+    }
+    
+    shareResult() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('d', this.downloadSpeed.toFixed(2));
+        url.searchParams.set('u', this.uploadSpeed.toFixed(2));
+        url.searchParams.set('p', this.ping.toFixed(0));
+        url.searchParams.set('j', this.jitter.toFixed(0));
+        
+        const shareUrl = url.toString();
+        
+        // Copy to clipboard
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                this.updateTestStatus('Link copied to clipboard!');
+                setTimeout(() => {
+                    this.updateTestStatus('');
+                }, 2000);
+            }).catch(() => {
+                this.updateTestStatus('Failed to copy link');
+            });
+        } else {
+            // Fallback
+            const textArea = document.createElement('textarea');
+            textArea.value = shareUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            this.updateTestStatus('Link copied to clipboard!');
+        }
+        
+        // Also try to use Web Share API if available
+        if (navigator.share) {
+            navigator.share({
+                title: 'My Speed Test Results',
+                text: `Download: ${this.downloadSpeed.toFixed(2)} Mbps, Upload: ${this.uploadSpeed.toFixed(2)} Mbps, Ping: ${this.ping.toFixed(0)} ms`,
+                url: shareUrl
+            }).catch(() => {
+                // Share was cancelled or failed
+            });
+        }
     }
     
     async startTest() {
