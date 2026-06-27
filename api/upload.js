@@ -12,11 +12,23 @@ export default function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-        // Simply respond immediately - the timing is measured on the client side
-        res.status(200).json({
-            status: 'ok',
-            time: Date.now(),
-            bytesReceived: req.headers['content-length'] || 0
+        // Read the body to ensure we receive the full upload
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        
+        req.on('end', () => {
+            // Respond after receiving the full body
+            res.status(200).json({
+                status: 'ok',
+                time: Date.now(),
+                bytesReceived: body.length
+            });
+        });
+        
+        req.on('error', () => {
+            res.status(500).json({ error: 'Upload failed' });
         });
     } else {
         res.status(405).json({ error: 'Method not allowed' });

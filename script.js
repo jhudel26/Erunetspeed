@@ -496,7 +496,7 @@ class SpeedTest {
     }
     
     async uploadThread(duration, globalStartTime, threadIndex) {
-        const chunkSize = 512 * 1024; // 512KB chunks for better reliability
+        const chunkSize = 2 * 1024 * 1024; // 2MB chunks for better accuracy
         const data = new Array(chunkSize).fill('x').join('');
         const blob = new Blob([data], { type: 'application/octet-stream' });
         const speedSamples = [];
@@ -506,63 +506,14 @@ class SpeedTest {
             const chunkStartTime = performance.now();
             
             try {
-                // Try multiple endpoints for better reliability
-                let response;
-                let success = false;
+                // Use XHR for more accurate timing with progress events
+                const uploadSpeed = await this.measureUploadWithXHR(blob, chunkSize);
                 
-                // Try local API first
-                try {
-                    response = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: blob,
-                        headers: { 'Content-Type': 'application/octet-stream' }
-                    });
-                    if (response.ok) success = true;
-                } catch (localError) {
-                    console.log('Local upload failed, trying fallback');
-                }
-                
-                // If local fails, try httpbin
-                if (!success) {
-                    try {
-                        response = await fetch('https://httpbin.org/post', {
-                            method: 'POST',
-                            body: blob,
-                            headers: { 'Content-Type': 'application/octet-stream' }
-                        });
-                        if (response.ok) success = true;
-                    } catch (httpbinError) {
-                        console.log('Httpbin upload failed');
-                    }
-                }
-                
-                // If that fails, try a simple echo endpoint
-                if (!success) {
-                    try {
-                        response = await fetch('https://echo.zuplo.io', {
-                            method: 'POST',
-                            body: blob
-                        });
-                        if (response.ok) success = true;
-                    } catch (echoError) {
-                        console.log('Echo upload failed');
-                    }
-                }
-                
-                if (success) {
+                if (uploadSpeed > 0) {
                     successCount++;
-                    const chunkEndTime = performance.now();
-                    const chunkDuration = (chunkEndTime - chunkStartTime) / 1000;
-                    
-                    if (chunkDuration > 0 && chunkDuration < 10) {
-                        const speed = (chunkSize * 8) / (chunkDuration * 1024 * 1024);
-                        // Filter out unrealistic speeds
-                        if (speed > 0 && speed < 1000) {
-                            speedSamples.push(speed);
-                            this.currentSpeedEl.textContent = speed.toFixed(2);
-                            this.uploadSpeedEl.textContent = speed.toFixed(2);
-                        }
-                    }
+                    speedSamples.push(uploadSpeed);
+                    this.currentSpeedEl.textContent = uploadSpeed.toFixed(2);
+                    this.uploadSpeedEl.textContent = uploadSpeed.toFixed(2);
                 }
                 
                 // Update progress
@@ -574,11 +525,68 @@ class SpeedTest {
                 console.log('Upload chunk error:', error);
             }
             
-            await this.delay(50);
+            await this.delay(100);
         }
         
         console.log(`Thread ${threadIndex}: ${successCount} successful uploads, ${speedSamples.length} speed samples`);
         return speedSamples;
+    }
+    
+    async measureUploadWithXHR(blob, chunkSize) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const startTime = performance.now();
+            let loadedBytes = 0;
+            let lastTime = startTime;
+            const speedMeasurements = [];
+            
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const currentTime = performance.now();
+                    const timeElapsed = (currentTime - lastTime) / 1000;
+                    const bytesSinceLast = e.loaded - loadedBytes;
+                    
+                    if (timeElapsed > 0.1 && bytesSinceLast > 0) {
+                        const speed = (bytesSinceLast * 8) / (timeElapsed * 1024 * 1024);
+                        if (speed > 0 && speed < 1000) {
+                            speedMeasurements.push(speed);
+                        }
+                        lastTime = currentTime;
+                        loadedBytes = e.loaded;
+                    }
+                }
+            });
+            
+            xhr.addEventListener('load', () => {
+                const endTime = performance.now();
+                const totalDuration = (endTime - startTime) / 1000;
+                
+                if (speedMeasurements.length > 0) {
+                    const avgSpeed = speedMeasurements.reduce((a, b) => a + b, 0) / speedMeasurements.length;
+                    resolve(avgSpeed);
+                } else if (totalDuration > 0) {
+                    const speed = (chunkSize * 8) / (totalDuration * 1024 * 1024);
+                    resolve(speed);
+                } else {
+                    resolve(0);
+                }
+            });
+            
+            xhr.addEventListener('error', () => {
+                reject(new Error('XHR upload failed'));
+            });
+            
+            xhr.addEventListener('timeout', () => {
+                xhr.abort();
+                reject(new Error('Upload timeout'));
+            });
+            
+            // Try local API first
+            xhr.open('POST', '/api/upload', true);
+            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+            xhr.timeout = 15000;
+            xhr.send(blob);
+        });
     }
     
     async quickDownloadTest() {
