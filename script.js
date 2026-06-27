@@ -150,6 +150,9 @@ class SpeedTest {
         
         const shareUrl = url.toString();
         
+        // Update OG meta tags for social media preview
+        this.updateOGMetaTags();
+        
         // Copy to clipboard
         if (navigator.clipboard) {
             navigator.clipboard.writeText(shareUrl).then(() => {
@@ -180,6 +183,21 @@ class SpeedTest {
             }).catch(() => {
                 // Share was cancelled or failed
             });
+        }
+    }
+    
+    updateOGMetaTags() {
+        const ogImage = document.querySelector('meta[property="og:image"]');
+        const twitterImage = document.querySelector('meta[name="twitter:image"]');
+        
+        const imageUrl = `/api/og?download=${this.downloadSpeed.toFixed(2)}&upload=${this.uploadSpeed.toFixed(2)}&ping=${this.ping.toFixed(0)}`;
+        
+        if (ogImage) {
+            ogImage.setAttribute('content', imageUrl);
+        }
+        
+        if (twitterImage) {
+            twitterImage.setAttribute('content', imageUrl);
         }
     }
     
@@ -446,92 +464,72 @@ class SpeedTest {
     
     async optimizedUploadTest() {
         const results = [];
+        const testDuration = 8000;
+        const startTime = performance.now();
+        let totalBytes = 0;
+        const speedSamples = [];
         
-        for (let i = 0; i < this.uploadThreads && this.isTesting; i++) {
-            try {
-                const speed = await this.testUploadWithXHR();
-                if (speed > 0) results.push({ method: 'XHR', speed });
-            } catch (error) {
-                console.log('XHR upload test failed:', error);
-            }
-            
-            try {
-                const speed = await this.testUploadWithFetch();
-                if (speed > 0) results.push({ method: 'Fetch', speed });
-            } catch (error) {
-                console.log('Fetch upload test failed:', error);
-            }
-            
-            const progress = 75 + ((i + 1) / this.uploadThreads) * 25;
-            this.updateProgress(Math.min(progress, 100));
+        // Use multiple concurrent uploads for better accuracy
+        const uploadPromises = [];
+        const numThreads = 4;
+        
+        for (let i = 0; i < numThreads; i++) {
+            uploadPromises.push(this.uploadThread(testDuration, startTime, i));
         }
         
-        if (results.length === 0) return 0;
+        await Promise.all(uploadPromises);
         
-        results.sort((a, b) => a.speed - b.speed);
-        const medianSpeed = results[Math.floor(results.length / 2)].speed;
+        // Calculate average speed from samples
+        if (speedSamples.length > 0) {
+            speedSamples.sort((a, b) => a - b);
+            const trimmed = this.trimArray(speedSamples, 0.2, 0.2);
+            const avgSpeed = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+            return Math.max(avgSpeed, 1);
+        }
         
-        return Math.max(medianSpeed, 5);
+        return 0;
     }
     
-    async testUploadWithXHR() {
-        return new Promise((resolve, reject) => {
-            const dataSize = 5 * 1024 * 1024; // 5MB
-            const data = new Array(dataSize).fill('a').join('');
+    async uploadThread(duration, globalStartTime, threadIndex) {
+        const chunkSize = 1024 * 1024; // 1MB chunks
+        const data = new Array(chunkSize).fill('x').join('');
+        const blob = new Blob([data], { type: 'application/octet-stream' });
+        const speedSamples = [];
+        
+        while (performance.now() - globalStartTime < duration && this.isTesting) {
+            const chunkStartTime = performance.now();
             
-            const xhr = new XMLHttpRequest();
-            const startTime = performance.now();
-            
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const elapsed = (performance.now() - startTime) / 1000;
-                    const speed = (e.loaded * 8) / (elapsed * 1024 * 1024);
+            try {
+                // Use a reliable endpoint for upload testing
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: blob,
+                    headers: { 'Content-Type': 'application/octet-stream' }
+                });
+                
+                const chunkEndTime = performance.now();
+                const chunkDuration = (chunkEndTime - chunkStartTime) / 1000;
+                
+                if (chunkDuration > 0) {
+                    const speed = (chunkSize * 8) / (chunkDuration * 1024 * 1024);
+                    speedSamples.push(speed);
+                    
                     this.currentSpeedEl.textContent = speed.toFixed(2);
                     this.uploadSpeedEl.textContent = speed.toFixed(2);
                 }
-            });
-            
-            xhr.addEventListener('load', () => {
-                const endTime = performance.now();
-                const duration = (endTime - startTime) / 1000;
-                const speed = (dataSize * 8) / (duration * 1024 * 1024);
-                resolve(speed);
-            });
-            
-            xhr.addEventListener('error', () => reject(new Error('XHR upload failed')));
-            
-            xhr.open('POST', '/api/upload');
-            xhr.setRequestHeader('Content-Type', 'text/plain');
-            xhr.send(data);
-            
-            setTimeout(() => {
-                xhr.abort();
-                reject(new Error('Upload timeout'));
-            }, 10000);
-        });
-    }
-    
-    async testUploadWithFetch() {
-        const dataSize = 5 * 1024 * 1024; // 5MB
-        const data = new Blob([new Array(dataSize).fill('a').join('')], { type: 'text/plain' });
-        
-        const startTime = performance.now();
-        
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: data,
-                headers: { 'Content-Type': 'text/plain' }
-            });
-            
-            const endTime = performance.now();
-            const duration = (endTime - startTime) / 1000;
-            const speed = (dataSize * 8) / (duration * 1024 * 1024);
-            
-            return speed;
-        } catch (error) {
-            return 0;
+                
+                // Update progress
+                const elapsed = performance.now() - globalStartTime;
+                const progress = 75 + (elapsed / duration) * 25;
+                this.updateProgress(Math.min(progress, 100));
+                
+            } catch (error) {
+                // If upload fails, continue with next chunk
+                await this.delay(100);
+            }
         }
+        
+        return speedSamples;
     }
     
     async quickDownloadTest() {
