@@ -15,25 +15,63 @@ class SpeedTest {
         this.abortControllers = [];
         
         // DOM Elements
-        this.startBtn = document.getElementById('startBtn');
-        this.retryBtn = document.getElementById('retryBtn');
-        this.shareBtn = document.getElementById('shareBtn');
-        this.downloadValue = document.getElementById('downloadValue');
-        this.uploadValue = document.getElementById('uploadValue');
-        this.pingValue = document.getElementById('pingValue');
-        this.progressFill = document.getElementById('progressFill');
-        this.progressText = document.getElementById('progressText');
-        this.statusMessage = document.getElementById('statusMessage');
+        this.startTestBtn = document.getElementById('start-test');
+        this.backToTestBtn = document.getElementById('back-to-test');
+        this.shareResultsBtn = document.getElementById('share-results');
+        this.closeShareModalBtn = document.getElementById('close-share-modal');
+        this.copyLinkBtn = document.getElementById('copy-link-btn');
+        this.shareTwitterBtn = document.getElementById('share-twitter');
+        this.shareFacebookBtn = document.getElementById('share-facebook');
+        this.shareWhatsappBtn = document.getElementById('share-whatsapp');
         
-        // Metric cards
-        this.downloadCard = document.querySelector('.metric-card.download');
-        this.pingCard = document.querySelector('.metric-card.ping');
-        this.uploadCard = document.querySelector('.metric-card.upload');
+        this.resultsSection = document.getElementById('results-section');
+        this.testControlSection = document.getElementById('test-control-section');
+        this.testButtonContainer = document.getElementById('test-button-container');
+        this.progressContainer = document.getElementById('progress-container');
+        this.shareModal = document.getElementById('share-modal');
+        this.shareLinkInput = document.getElementById('share-link-input');
+        this.shareSuccess = document.getElementById('share-success');
+        
+        // Metric elements
+        this.downloadSpeedEl = document.getElementById('download-speed');
+        this.uploadSpeedEl = document.getElementById('upload-speed');
+        this.pingEl = document.getElementById('ping');
+        this.jitterEl = document.getElementById('jitter');
+        this.downloadRateEl = document.getElementById('download-rate');
+        this.downloadQualityEl = document.getElementById('download-quality');
+        this.uploadRateEl = document.getElementById('upload-rate');
+        this.uploadQualityEl = document.getElementById('upload-quality');
+        
+        // Progress elements
+        this.currentSpeedEl = document.getElementById('current-speed');
+        this.progressBar = document.getElementById('progress-bar');
+        this.progressPercentage = document.getElementById('progress-percentage');
+        this.testStatus = document.getElementById('test-status');
+        this.loadingSpinner = document.getElementById('loading-spinner');
+        this.cancelTestBtn = document.getElementById('cancel-test');
+        
+        // Test phase elements
+        this.testPhases = document.querySelectorAll('.test-phase');
+        
+        // ISP info elements
+        this.serverLocationEl = document.getElementById('server-location');
+        this.serverDistanceEl = document.getElementById('server-distance');
+        this.ispNameEl = document.getElementById('isp-name');
+        this.ipAddressEl = document.getElementById('ip-address');
         
         // Event listeners
-        this.startBtn.addEventListener('click', () => this.startTest());
-        this.retryBtn.addEventListener('click', () => this.startTest());
-        this.shareBtn.addEventListener('click', () => this.shareResult());
+        this.startTestBtn.addEventListener('click', () => this.startTest());
+        this.backToTestBtn.addEventListener('click', () => this.showTestControl());
+        this.shareResultsBtn.addEventListener('click', () => this.openShareModal());
+        this.closeShareModalBtn.addEventListener('click', () => this.closeShareModal());
+        this.copyLinkBtn.addEventListener('click', () => this.copyShareLink());
+        this.shareTwitterBtn.addEventListener('click', () => this.shareOnTwitter());
+        this.shareFacebookBtn.addEventListener('click', () => this.shareOnFacebook());
+        this.shareWhatsappBtn.addEventListener('click', () => this.shareOnWhatsapp());
+        this.cancelTestBtn.addEventListener('click', () => this.cancelTest());
+        
+        // Detect ISP info
+        this.detectISP();
         
         // Load saved results
         this.loadSavedResults();
@@ -43,10 +81,129 @@ class SpeedTest {
         const saved = localStorage.getItem('speedtestResults');
         if (saved) {
             const results = JSON.parse(saved);
-            this.displayResults(results.download, results.upload, results.ping);
-            this.retryBtn.style.display = 'inline-block';
-            this.shareBtn.style.display = 'inline-block';
+            this.displayResults(results.download, results.upload, results.ping, results.jitter);
+            this.showResultsSection();
         }
+    }
+    
+    async detectISP() {
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            const data = await response.json();
+            
+            if (data.ip) {
+                this.ipAddressEl.textContent = data.ip;
+            }
+            if (data.org) {
+                this.ispNameEl.textContent = data.org;
+            }
+            if (data.city && data.country_name) {
+                this.serverLocationEl.textContent = `${data.city}, ${data.country_name}`;
+            }
+        } catch (error) {
+            console.error('ISP detection failed:', error);
+            this.ispNameEl.textContent = 'Unknown ISP';
+            this.ipAddressEl.textContent = '--';
+        }
+    }
+    
+    showTestControl() {
+        this.resultsSection.classList.add('hidden');
+        this.testControlSection.classList.remove('hidden');
+        this.testButtonContainer.classList.remove('hidden');
+        this.progressContainer.classList.add('hidden');
+    }
+    
+    showResultsSection() {
+        this.resultsSection.classList.remove('hidden');
+        this.testControlSection.classList.add('hidden');
+    }
+    
+    showProgress() {
+        this.testButtonContainer.classList.add('hidden');
+        this.progressContainer.classList.remove('hidden');
+        this.cancelTestBtn.style.display = 'inline-block';
+    }
+    
+    hideProgress() {
+        this.progressContainer.classList.add('hidden');
+        this.cancelTestBtn.style.display = 'none';
+    }
+    
+    updateTestPhase(phase, status) {
+        this.testPhases.forEach(el => {
+            const phaseName = el.getAttribute('data-phase');
+            if (phaseName === phase) {
+                el.setAttribute('data-phase', status);
+            }
+        });
+    }
+    
+    resetTestPhases() {
+        this.testPhases.forEach(el => {
+            const phaseName = el.getAttribute('data-phase');
+            el.setAttribute('data-phase', phaseName);
+        });
+    }
+    
+    openShareModal() {
+        const shareUrl = this.generateShareUrl();
+        this.shareLinkInput.value = shareUrl;
+        this.shareModal.classList.remove('hidden');
+        this.shareSuccess.classList.add('hidden');
+    }
+    
+    closeShareModal() {
+        this.shareModal.classList.add('hidden');
+    }
+    
+    copyShareLink() {
+        const shareUrl = this.shareLinkInput.value;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            this.shareSuccess.classList.remove('hidden');
+            setTimeout(() => {
+                this.shareSuccess.classList.add('hidden');
+            }, 2000);
+        }).catch(() => {
+            alert('Failed to copy link');
+        });
+    }
+    
+    shareOnTwitter() {
+        const text = `My Speed Test Results: Download: ${this.downloadSpeed.toFixed(2)} Mbps, Upload: ${this.uploadSpeed.toFixed(2)} Mbps, Ping: ${this.ping} ms`;
+        const url = this.generateShareUrl();
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+        window.open(twitterUrl, '_blank');
+    }
+    
+    shareOnFacebook() {
+        const url = this.generateShareUrl();
+        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+        window.open(facebookUrl, '_blank');
+    }
+    
+    shareOnWhatsapp() {
+        const text = `My Speed Test Results: Download: ${this.downloadSpeed.toFixed(2)} Mbps, Upload: ${this.uploadSpeed.toFixed(2)} Mbps, Ping: ${this.ping} ms`;
+        const url = this.generateShareUrl();
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
+        window.open(whatsappUrl, '_blank');
+    }
+    
+    generateShareUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('d', this.downloadSpeed.toFixed(2));
+        url.searchParams.set('u', this.uploadSpeed.toFixed(2));
+        url.searchParams.set('p', this.ping.toFixed(0));
+        url.searchParams.set('j', this.jitter.toFixed(0));
+        return url.toString();
+    }
+    
+    cancelTest() {
+        this.isTesting = false;
+        this.cleanup();
+        this.hideProgress();
+        this.showTestControl();
+        this.resetTestPhases();
     }
     
     async startTest() {
@@ -55,38 +212,43 @@ class SpeedTest {
         this.isTesting = true;
         this.resetUI();
         this.abortControllers = [];
+        this.resetTestPhases();
+        this.showProgress();
         
         try {
             // Test Ping
-            this.updateStatus('Testing latency...');
-            this.pingCard.classList.add('active');
+            this.updateTestStatus('Testing latency...');
+            this.updateTestPhase('ping', 'active');
             await this.testPing();
-            this.pingCard.classList.remove('active');
+            this.updateTestPhase('ping', 'ping complete');
             this.updateProgress(25);
             
             // Test Download
-            this.updateStatus('Testing download speed...');
-            this.downloadCard.classList.add('active');
+            this.updateTestStatus('Testing download speed...');
+            this.updateTestPhase('download', 'active');
             await this.testDownload();
-            this.downloadCard.classList.remove('active');
+            this.updateTestPhase('download', 'download complete');
             this.updateProgress(75);
             
             // Test Upload
-            this.updateStatus('Testing upload speed...');
-            this.uploadCard.classList.add('active');
+            this.updateTestStatus('Testing upload speed...');
+            this.updateTestPhase('upload', 'active');
             await this.testUpload();
-            this.uploadCard.classList.remove('active');
+            this.updateTestPhase('upload', 'upload complete');
             this.updateProgress(100);
             
             // Test complete
-            this.updateStatus('Test complete!');
-            this.showRetryButton();
+            this.updateTestPhase('complete', 'active');
+            this.updateTestStatus('Test complete!');
             this.saveResults();
+            this.hideProgress();
+            this.showResultsSection();
             
         } catch (error) {
             console.error('Speed test error:', error);
-            this.updateStatus('Test failed. Please try again.');
-            this.showRetryButton();
+            this.updateTestStatus('Test failed. Please try again.');
+            this.hideProgress();
+            this.showTestControl();
         } finally {
             this.cleanup();
             this.isTesting = false;
@@ -153,7 +315,8 @@ class SpeedTest {
             this.jitter = 0;
         }
         
-        this.pingValue.textContent = this.ping;
+        this.pingEl.textContent = this.ping;
+        this.jitterEl.textContent = this.jitter;
     }
     
     async testDownload() {
@@ -230,7 +393,8 @@ class SpeedTest {
                                 speedSamples.shift();
                             }
 
-                            this.downloadValue.textContent = currentSpeed.toFixed(2);
+                            this.currentSpeedEl.textContent = currentSpeed.toFixed(2);
+                            this.downloadSpeedEl.textContent = currentSpeed.toFixed(2);
 
                             const progress = 25 + ((currentTime - mainStartTime) / adaptiveDuration) * 50;
                             this.updateProgress(Math.min(progress, 75));
@@ -276,17 +440,21 @@ class SpeedTest {
             this.downloadSpeed = Math.max(initialSpeed * 0.8, 5);
         }
 
-        this.downloadValue.textContent = this.downloadSpeed.toFixed(2);
+        this.downloadSpeedEl.textContent = this.downloadSpeed.toFixed(2);
+        this.downloadRateEl.textContent = (this.downloadSpeed / 8).toFixed(2) + ' MB/s';
+        this.downloadQualityEl.textContent = this.getQualityRating(this.downloadSpeed, 'download');
     }
     
     async testUpload() {
-        this.updateStatus('Testing upload speed...');
+        this.updateTestStatus('Testing upload speed...');
         
         try {
             const uploadSpeed = await this.optimizedUploadTest();
             if (uploadSpeed > 0) {
                 this.uploadSpeed = uploadSpeed;
-                this.uploadValue.textContent = this.uploadSpeed.toFixed(2);
+                this.uploadSpeedEl.textContent = this.uploadSpeed.toFixed(2);
+                this.uploadRateEl.textContent = (this.uploadSpeed / 8).toFixed(2) + ' MB/s';
+                this.uploadQualityEl.textContent = this.getQualityRating(this.uploadSpeed, 'upload');
                 return;
             }
         } catch (error) {
@@ -294,7 +462,9 @@ class SpeedTest {
         }
         
         this.uploadSpeed = 0;
-        this.uploadValue.textContent = '0.00';
+        this.uploadSpeedEl.textContent = '0.00';
+        this.uploadRateEl.textContent = '0.00 MB/s';
+        this.uploadQualityEl.textContent = 'Poor';
     }
     
     async optimizedUploadTest() {
@@ -339,7 +509,8 @@ class SpeedTest {
                 if (e.lengthComputable) {
                     const elapsed = (performance.now() - startTime) / 1000;
                     const speed = (e.loaded * 8) / (elapsed * 1024 * 1024);
-                    this.uploadValue.textContent = speed.toFixed(2);
+                    this.currentSpeedEl.textContent = speed.toFixed(2);
+                    this.uploadSpeedEl.textContent = speed.toFixed(2);
                 }
             });
             
@@ -462,34 +633,58 @@ class SpeedTest {
     }
     
     resetUI() {
-        this.downloadValue.textContent = '0.00';
-        this.uploadValue.textContent = '0.00';
-        this.pingValue.textContent = '0';
-        this.progressFill.style.width = '0%';
-        this.progressText.textContent = 'Starting test...';
-        this.startBtn.style.display = 'none';
-        this.retryBtn.style.display = 'none';
-        this.shareBtn.style.display = 'none';
+        this.downloadSpeedEl.textContent = '0';
+        this.uploadSpeedEl.textContent = '0';
+        this.pingEl.textContent = '0';
+        this.jitterEl.textContent = '0';
+        this.downloadRateEl.textContent = '0 MB/s';
+        this.downloadQualityEl.textContent = '--';
+        this.uploadRateEl.textContent = '0 MB/s';
+        this.uploadQualityEl.textContent = '--';
+        this.currentSpeedEl.textContent = '0';
+        this.progressBar.style.width = '0%';
+        this.progressPercentage.textContent = '0%';
     }
     
     updateProgress(percent) {
-        this.progressFill.style.width = `${percent}%`;
-        this.progressText.textContent = `${percent}% complete`;
+        this.progressBar.style.width = `${percent}%`;
+        this.progressPercentage.textContent = `${Math.round(percent)}%`;
     }
     
-    updateStatus(message) {
-        this.statusMessage.textContent = message;
+    updateTestStatus(message) {
+        this.testStatus.innerHTML = `
+            <span class="inline-flex items-center">
+                <span class="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent mr-2"></span>
+                <span class="break-words">${message}</span>
+            </span>
+        `;
     }
     
-    showRetryButton() {
-        this.retryBtn.style.display = 'inline-block';
-        this.shareBtn.style.display = 'inline-block';
+    getQualityRating(speed, type) {
+        if (type === 'download') {
+            if (speed >= 100) return 'Excellent';
+            if (speed >= 50) return 'Very Good';
+            if (speed >= 25) return 'Good';
+            if (speed >= 10) return 'Fair';
+            return 'Poor';
+        } else {
+            if (speed >= 50) return 'Excellent';
+            if (speed >= 25) return 'Very Good';
+            if (speed >= 10) return 'Good';
+            if (speed >= 5) return 'Fair';
+            return 'Poor';
+        }
     }
     
-    displayResults(download, upload, ping) {
-        this.downloadValue.textContent = download.toFixed(2);
-        this.uploadValue.textContent = upload.toFixed(2);
-        this.pingValue.textContent = ping.toFixed(0);
+    displayResults(download, upload, ping, jitter) {
+        this.downloadSpeedEl.textContent = download.toFixed(2);
+        this.uploadSpeedEl.textContent = upload.toFixed(2);
+        this.pingEl.textContent = ping.toFixed(0);
+        this.jitterEl.textContent = jitter.toFixed(0);
+        this.downloadRateEl.textContent = (download / 8).toFixed(2) + ' MB/s';
+        this.uploadRateEl.textContent = (upload / 8).toFixed(2) + ' MB/s';
+        this.downloadQualityEl.textContent = this.getQualityRating(download, 'download');
+        this.uploadQualityEl.textContent = this.getQualityRating(upload, 'upload');
     }
     
     saveResults() {
@@ -497,47 +692,10 @@ class SpeedTest {
             download: this.downloadSpeed,
             upload: this.uploadSpeed,
             ping: this.ping,
+            jitter: this.jitter,
             timestamp: Date.now()
         };
         localStorage.setItem('speedtestResults', JSON.stringify(results));
-    }
-    
-    shareResult() {
-        const url = new URL(window.location.href);
-        url.searchParams.set('d', this.downloadSpeed.toFixed(2));
-        url.searchParams.set('u', this.uploadSpeed.toFixed(2));
-        url.searchParams.set('p', this.ping.toFixed(0));
-        
-        const shareUrl = url.toString();
-        
-        // Copy to clipboard
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                this.updateStatus('Link copied to clipboard!');
-            }).catch(() => {
-                this.updateStatus('Failed to copy link');
-            });
-        } else {
-            // Fallback
-            const textArea = document.createElement('textarea');
-            textArea.value = shareUrl;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            this.updateStatus('Link copied to clipboard!');
-        }
-        
-        // Also try to use Web Share API if available
-        if (navigator.share) {
-            navigator.share({
-                title: 'My Speed Test Results',
-                text: `Download: ${this.downloadSpeed.toFixed(2)} Mbps, Upload: ${this.uploadSpeed.toFixed(2)} Mbps, Ping: ${this.ping.toFixed(0)} ms`,
-                url: shareUrl
-            }).catch(() => {
-                // Share was cancelled or failed
-            });
-        }
     }
 }
 
@@ -547,25 +705,13 @@ function checkSharedResults() {
     const download = params.get('d');
     const upload = params.get('u');
     const ping = params.get('p');
+    const jitter = params.get('j') || '0';
     
     if (download && upload && ping) {
         // Display shared results
-        document.getElementById('downloadValue').textContent = parseFloat(download).toFixed(2);
-        document.getElementById('uploadValue').textContent = parseFloat(upload).toFixed(2);
-        document.getElementById('pingValue').textContent = parseFloat(ping).toFixed(0);
-        
-        document.getElementById('startBtn').style.display = 'none';
-        document.getElementById('retryBtn').style.display = 'inline-block';
-        document.getElementById('shareBtn').style.display = 'inline-block';
-        document.getElementById('progressText').textContent = 'Shared result';
-        document.getElementById('progressFill').style.width = '100%';
-        document.getElementById('statusMessage').textContent = 'Viewing shared speed test result';
-        
-        // Update OG image
-        const ogImage = document.querySelector('meta[property="og:image"]');
-        if (ogImage) {
-            ogImage.setAttribute('content', `/api/og?download=${download}&upload=${upload}&ping=${ping}`);
-        }
+        const speedTest = new SpeedTest();
+        speedTest.displayResults(parseFloat(download), parseFloat(upload), parseFloat(ping), parseFloat(jitter));
+        speedTest.showResultsSection();
         
         return true;
     }
