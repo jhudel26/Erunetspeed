@@ -20,6 +20,35 @@
     <meta name="twitter:description" content="Professional internet speed test tool - measure your download, upload speeds, ping, and jitter with accuracy">
     <meta name="twitter:image" content="/api/og">
     
+    <!-- Dynamic OG Image Script -->
+    <script>
+        // Update OG image URL based on URL parameters
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const download = params.get('d');
+            const upload = params.get('u');
+            const ping = params.get('p');
+            
+            if (download && upload && ping) {
+                const ogImage = document.querySelector('meta[property="og:image"]');
+                const twitterImage = document.querySelector('meta[name="twitter:image"]');
+                const ogTitle = document.querySelector('meta[property="og:title"]');
+                const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+                const ogDesc = document.querySelector('meta[property="og:description"]');
+                const twitterDesc = document.querySelector('meta[name="twitter:description"]');
+                
+                const ogImageUrl = `/api/og?download=${download}&upload=${upload}&ping=${ping}`;
+                
+                if (ogImage) ogImage.setAttribute('content', ogImageUrl);
+                if (twitterImage) twitterImage.setAttribute('content', ogImageUrl);
+                if (ogTitle) ogTitle.setAttribute('content', `Speed Test Results: ${download} Mbps Download, ${upload} Mbps Upload`);
+                if (twitterTitle) twitterTitle.setAttribute('content', `Speed Test Results: ${download} Mbps Download, ${upload} Mbps Upload`);
+                if (ogDesc) ogDesc.setAttribute('content', `Download: ${download} Mbps, Upload: ${upload} Mbps, Ping: ${ping} ms`);
+                if (twitterDesc) twitterDesc.setAttribute('content', `Download: ${download} Mbps, Upload: ${upload} Mbps, Ping: ${ping} ms`);
+            }
+        })();
+    </script>
+    
     <title>Speed Test - Internet Speed Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">

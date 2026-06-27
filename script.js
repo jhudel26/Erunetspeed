@@ -142,16 +142,8 @@ class SpeedTest {
     }
     
     shareResult() {
-        const url = new URL(window.location.href);
-        url.searchParams.set('d', this.downloadSpeed.toFixed(2));
-        url.searchParams.set('u', this.uploadSpeed.toFixed(2));
-        url.searchParams.set('p', this.ping.toFixed(0));
-        url.searchParams.set('j', this.jitter.toFixed(0));
-        
-        const shareUrl = url.toString();
-        
-        // Update OG meta tags for social media preview
-        this.updateOGMetaTags();
+        const baseUrl = window.location.origin;
+        const shareUrl = `${baseUrl}/api/share?download=${this.downloadSpeed.toFixed(2)}&upload=${this.uploadSpeed.toFixed(2)}&ping=${this.ping.toFixed(0)}`;
         
         // Copy to clipboard
         if (navigator.clipboard) {
