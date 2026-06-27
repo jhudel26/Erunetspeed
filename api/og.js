@@ -1,6 +1,9 @@
+// Vercel OG Image generation for speed test results using SVG converted to PNG
+import sharp from 'sharp';
+
 export default function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+  res.setHeader("Content-Type", "image/png");
 
   const { download = "0", upload = "0", ping = "0" } = req.query;
 
@@ -8,7 +11,7 @@ export default function handler(req, res) {
   const u = isNaN(upload) ? 0 : parseFloat(upload);
   const p = isNaN(ping) ? 0 : parseFloat(ping);
 
-  const svg = `
+  const svg = Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
 
@@ -30,16 +33,6 @@ export default function handler(req, res) {
       <stop offset="100%" stop-color="transparent"/>
     </radialGradient>
 
-    <!-- Glass Card -->
-    <filter id="glass">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feColorMatrix in="blur" type="matrix"
-        values="1 0 0 0 0
-                0 1 0 0 0
-                0 0 1 0 0
-                0 0 0 0.25 0"/>
-    </filter>
-
     <!-- Shadow -->
     <filter id="shadow">
       <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000" flood-opacity="0.5"/>
@@ -47,7 +40,7 @@ export default function handler(req, res) {
 
     <!-- Text Style -->
     <style>
-      .font { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .font { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
     </style>
 
   </defs>
@@ -120,7 +113,16 @@ export default function handler(req, res) {
   </text>
 
 </svg>
-`;
+`);
 
-  res.status(200).send(svg);
+  sharp(svg)
+    .png()
+    .toBuffer()
+    .then(data => {
+      res.status(200).send(data);
+    })
+    .catch(err => {
+      console.error('Error converting SVG to PNG:', err);
+      res.status(500).send('Error generating image');
+    });
 }
