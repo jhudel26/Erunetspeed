@@ -2,8 +2,13 @@
 export default function handler(req, res) {
   const { download, upload, ping } = req.query;
 
-  // Set OG image URL with parameters
-  const ogImageUrl = `/api/og?download=${download || '0'}&upload=${upload || '0'}&ping=${ping || '0'}`;
+  // Get the host from the request headers
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers.host;
+  const baseUrl = `${protocol}://${host}`;
+
+  // Set OG image URL with parameters (absolute URL for crawlers)
+  const ogImageUrl = `${baseUrl}/api/og?download=${download || '0'}&upload=${upload || '0'}&ping=${ping || '0'}`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -20,6 +25,7 @@ export default function handler(req, res) {
   <meta property="og:image" content="${ogImageUrl}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Speed test results showing download, upload, and ping speeds">
   
   <!-- Twitter Card Meta Tags -->
   <meta name="twitter:card" content="summary_large_image">
