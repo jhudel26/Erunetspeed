@@ -73,8 +73,8 @@ class SpeedTest {
         // Detect ISP info
         this.detectISP();
         
-        // Load saved results
-        this.loadSavedResults();
+        // Initialize UI state
+        this.showTestControl();
     }
     
     loadSavedResults() {
