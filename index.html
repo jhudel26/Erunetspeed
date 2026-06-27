@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Test - Internet Speed Test</title>
+    <meta name="description" content="Test your internet speed with our free online speed test tool. Measure download, upload, and ping latency.">
+    <meta property="og:title" content="Speed Test - Internet Speed Test">
+    <meta property="og:description" content="Test your internet speed with our free online speed test tool.">
+    <meta property="og:image" content="https://yourdomain.com/api/og">
+    <meta property="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Speed Test</h1>
+            <p class="subtitle">Test your internet connection speed</p>
+        </header>
+
+        <main>
+            <div class="speed-display">
+                <div class="metric-card download">
+                    <div class="metric-icon">↓</div>
+                    <div class="metric-label">Download</div>
+                    <div class="metric-value" id="downloadValue">--</div>
+                    <div class="metric-unit">Mbps</div>
+                </div>
+
+                <div class="metric-card ping">
+                    <div class="metric-icon">⟷</div>
+                    <div class="metric-label">Ping</div>
+                    <div class="metric-value" id="pingValue">--</div>
+                    <div class="metric-unit">ms</div>
+                </div>
+
+                <div class="metric-card upload">
+                    <div class="metric-icon">↑</div>
+                    <div class="metric-label">Upload</div>
+                    <div class="metric-value" id="uploadValue">--</div>
+                    <div class="metric-unit">Mbps</div>
+                </div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Ready to test</div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-primary" id="startBtn">Start Test</button>
+                <button class="btn-secondary" id="retryBtn" style="display: none;">Retry Test</button>
+                <button class="btn-share" id="shareBtn" style="display: none;">Share Result</button>
+            </div>
+
+            <div class="status-message" id="statusMessage"></div>
+
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">🎯</span>
+                    <span>Accurate Results</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🌐</span>
+                    <span>Global Servers</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📱</span>
+                    <span>Mobile Friendly</span>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Built with ❤️ for accurate speed testing</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

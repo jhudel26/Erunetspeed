@@ -1,0 +1,26 @@
+{
+  "name": "speedtest-v2",
+  "version": "1.0.0",
+  "description": "A modern internet speed test web application",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "speedtest",
+    "internet",
+    "network",
+    "speed",
+    "test"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/og": "^0.6.2"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
