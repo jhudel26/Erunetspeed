@@ -336,7 +336,7 @@ class SpeedTest {
         const adaptiveDuration = Math.max(8000, Math.min(15000, this.calculateAdaptiveDuration(initialSpeed)));
         const numConnections = Math.min(6, Math.max(4, Math.ceil(initialSpeed / 50)));
 
-        this.updateStatus('Testing download speed...');
+        this.updateTestStatus('Testing download speed...');
         const mainStartTime = performance.now();
         let totalBytes = 0;
         let lastUpdateTime = mainStartTime;
@@ -676,7 +676,7 @@ class SpeedTest {
         }
     }
     
-    displayResults(download, upload, ping, jitter) {
+    displayResults(download, upload, ping, jitter = 0) {
         this.downloadSpeedEl.textContent = download.toFixed(2);
         this.uploadSpeedEl.textContent = upload.toFixed(2);
         this.pingEl.textContent = ping.toFixed(0);
