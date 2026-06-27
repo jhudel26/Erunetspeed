@@ -17,9 +17,7 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "@vercel/og": "^0.6.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "vercel": "^32.0.0"
   }

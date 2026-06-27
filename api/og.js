@@ -1,195 +1,75 @@
-// Vercel OG Image generation for speed test results
-import { ImageResponse } from '@vercel/og';
+// Vercel OG Image generation for speed test results using SVG
+export default function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Content-Type', 'image/svg+xml');
 
-export const config = {
-  runtime: 'edge',
-};
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
-export default function handler(req) {
-  const { searchParams } = new URL(req.url);
-  const download = searchParams.get('download') || '0';
-  const upload = searchParams.get('upload') || '0';
-  const ping = searchParams.get('ping') || '0';
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
 
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#0a0a0f',
-          backgroundImage: `
-            radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)
-          `,
-          fontFamily: 'system-ui, sans-serif',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '40px',
-          }}
-        >
-          {/* Title */}
-          <div
-            style={{
-              fontSize: '48px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              letterSpacing: '-2px',
-            }}
-          >
-            ⚡ Speed Test
-          </div>
+  const { download = '0', upload = '0', ping = '0' } = req.query;
 
-          {/* Speed Metrics */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '60px',
-              alignItems: 'center',
-            }}
-          >
-            {/* Download */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#a0a0b0',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px',
-                }}
-              >
-                ↓ Download
-              </div>
-              <div
-                style={{
-                  fontSize: '64px',
-                  fontWeight: 'bold',
-                  color: '#3b82f6',
-                }}
-              >
-                {parseFloat(download).toFixed(2)}
-              </div>
-              <div
-                style={{
-                  fontSize: '20px',
-                  color: '#a0a0b0',
-                }}
-              >
-                Mbps
-              </div>
-            </div>
+  const svg = `
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#12121a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="titleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)" />
+  
+  <!-- Decorative circles -->
+  <circle cx="240" cy="315" r="200" fill="rgba(59, 130, 246, 0.1)" />
+  <circle cx="960" cy="315" r="200" fill="rgba(139, 92, 246, 0.1)" />
+  
+  <!-- Title -->
+  <text x="600" y="120" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="url(#titleGradient)" text-anchor="middle">
+    ⚡ Speed Test
+  </text>
+  
+  <!-- Download -->
+  <g transform="translate(200, 250)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" fill="#a0a0b0" text-anchor="middle">↓ Download</text>
+    <text x="0" y="70" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#3b82f6" text-anchor="middle">${parseFloat(download).toFixed(2)}</text>
+    <text x="0" y="110" font-family="Arial, sans-serif" font-size="20" fill="#a0a0b0" text-anchor="middle">Mbps</text>
+  </g>
+  
+  <!-- Ping -->
+  <g transform="translate(600, 250)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" fill="#a0a0b0" text-anchor="middle">⟷ Ping</text>
+    <text x="0" y="70" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#f59e0b" text-anchor="middle">${parseFloat(ping).toFixed(0)}</text>
+    <text x="0" y="110" font-family="Arial, sans-serif" font-size="20" fill="#a0a0b0" text-anchor="middle">ms</text>
+  </g>
+  
+  <!-- Upload -->
+  <g transform="translate(1000, 250)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" fill="#a0a0b0" text-anchor="middle">↑ Upload</text>
+    <text x="0" y="70" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#10b981" text-anchor="middle">${parseFloat(upload).toFixed(2)}</text>
+    <text x="0" y="110" font-family="Arial, sans-serif" font-size="20" fill="#a0a0b0" text-anchor="middle">Mbps</text>
+  </g>
+  
+  <!-- Footer -->
+  <text x="600" y="550" font-family="Arial, sans-serif" font-size="18" fill="#666" text-anchor="middle">
+    Test your internet speed
+  </text>
+</svg>`;
 
-            {/* Ping */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#a0a0b0',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px',
-                }}
-              >
-                ⟷ Ping
-              </div>
-              <div
-                style={{
-                  fontSize: '64px',
-                  fontWeight: 'bold',
-                  color: '#f59e0b',
-                }}
-              >
-                {parseFloat(ping).toFixed(0)}
-              </div>
-              <div
-                style={{
-                  fontSize: '20px',
-                  color: '#a0a0b0',
-                }}
-              >
-                ms
-              </div>
-            </div>
-
-            {/* Upload */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '24px',
-                  color: '#a0a0b0',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px',
-                }}
-              >
-                ↑ Upload
-              </div>
-              <div
-                style={{
-                  fontSize: '64px',
-                  fontWeight: 'bold',
-                  color: '#10b981',
-                }}
-              >
-                {parseFloat(upload).toFixed(2)}
-              </div>
-              <div
-                style={{
-                  fontSize: '20px',
-                  color: '#a0a0b0',
-                }}
-              >
-                Mbps
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            style={{
-              fontSize: '18px',
-              color: '#666',
-              marginTop: '20px',
-            }}
-          >
-            Test your internet speed
-          </div>
-        </div>
-      </div>
-    ),
-    {
-      width: 1200,
-      height: 630,
-    }
-  );
+  res.status(200).send(svg);
 }
